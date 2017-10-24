@@ -1,8 +1,6 @@
 # Rake::Proxmox
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/rake/proxmox`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+Inspired by [nledez/proxmox](https://github.com/nledez/proxmox)
 
 ## Installation
 
@@ -20,9 +18,30 @@ Or install it yourself as:
 
     $ gem install rake-proxmox
 
+Put following block in your `Rakefile`
+
+```ruby
+Rake::Proxmox::RakeTasks.new
+```
+
 ## Usage
 
-TODO: Write usage instructions here
+Export needed environment variables to define which Proxmox cluster will be
+used.
+
+```bash
+export PROXMOX_PVE_CLUSTER=https://pve1.example.com:8006/api2/json/
+export PROXMOX_NODE=pve1
+export PROXMOX_REALM=pve
+export PROXMOX_USERNAME=vagrant
+export PROXMOX_PASSWORD=vagrant
+```
+
+Now, list all available tasks by calling
+
+```bash
+rake -T
+```
 
 ## Development
 
@@ -32,10 +51,9 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/rake-proxmox. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
+Bug reports and pull requests are welcome on GitHub at https://github.com/lehn-etracker/rake-proxmox. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
 
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
-
