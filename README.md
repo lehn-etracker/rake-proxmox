@@ -21,6 +21,7 @@ Or install it yourself as:
 Put following block in your `Rakefile`
 
 ```ruby
+require 'rake/proxmox'
 Rake::Proxmox::RakeTasks.new
 ```
 
