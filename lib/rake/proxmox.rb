@@ -222,6 +222,37 @@ module Rake
             end
           end
 
+          desc 'list backup jobs'
+          task 'cluster:backup:list' do
+            puts 'list_backup_jobs: '
+            proxmox.list_backup_jobs.each do |c|
+              puts " content:#{c}"
+            end
+          end
+
+          desc 'exclude backup jobs'
+          task 'cluster:backup:exclude_range' do
+            # , %i[node storage] do |_t, args|
+            # args.with_defaults(storage: 'local')
+            # args.with_defaults(node: ENV['PROXMOX_NODE'])
+            exclude_list = []
+            lxc_status.each do |vmid, _| # , vm|
+              # puts "VM: #{vmid} => #{vm['name']} (#{vm['type']}:"\
+              #        "#{vm['status']})"
+              exclude_list.push(vmid) if (vmid >= 900 && vmid < 1000) || \
+                                         (vmid >= 90_000 && vmid < 100_000)
+            end
+            puts exclude_list
+            # puts 'list_backup_jobs: ''
+            proxmox.list_backup_jobs.each do |c|
+              new_settings = {
+                starttime: c['starttime'],
+                exclude: exclude_list.join(',')
+              }
+              puts proxmox.update_backup_job(c['id'], new_settings)
+            end
+          end
+
           desc 'list proxmox backups'
           task 'backup:list', %i[vmid node storage] do |_t, args|
             args.with_defaults(storage: 'local')
