@@ -454,7 +454,7 @@ module Rake
         http_action_get('cluster/backup')
       end
 
-      # get backup job list
+      # update backup job
       def update_backup_job(jobid, data)
         http_action_put("cluster/backup/#{jobid}", data)
       end

@@ -230,24 +230,33 @@ module Rake
             end
           end
 
-          desc 'exclude backup jobs'
-          task 'cluster:backup:exclude_range' do
-            # , %i[node storage] do |_t, args|
-            # args.with_defaults(storage: 'local')
-            # args.with_defaults(node: ENV['PROXMOX_NODE'])
+          desc 'exclude VM id ranges from backup jobs'
+          task 'cluster:backup:exclude_range', %i[range_min range_max] \
+            do |_t, args|
+            args.with_defaults(range_min: 900)
+            args.with_defaults(range_max: 999)
             exclude_list = []
-            lxc_status.each do |vmid, _| # , vm|
-              # puts "VM: #{vmid} => #{vm['name']} (#{vm['type']}:"\
-              #        "#{vm['status']})"
-              exclude_list.push(vmid) if (vmid >= 900 && vmid < 1000) || \
-                                         (vmid >= 90_000 && vmid < 100_000)
+            lxc_status.each do |vmid, _|
+              exclude_list.push(vmid.to_s) if vmid >= args.range_min.to_i && \
+                                              vmid < args.range_max.to_i + 1
             end
-            puts exclude_list
-            # puts 'list_backup_jobs: ''
+            puts "Found following VM Ids in range #{args.range_min}"\
+                 " to #{args.range_max}: "
+            puts exclude_list.join(',')
             proxmox.list_backup_jobs.each do |c|
+              bjob_list = c['exclude'].split(',')
+              unless (exclude_list - bjob_list).any?
+                puts 'Nothing to exclude. All VMs in given range are in'\
+                      ' current exclude list in backup job '\
+                      "with id #{c['id']} and starttime #{c['starttime']}:"
+                next
+              end
+              puts 'Add following IDs to exclude list in backup job '\
+                   "with id #{c['id']} and starttime #{c['starttime']}:"
+              puts exclude_list - bjob_list
               new_settings = {
                 starttime: c['starttime'],
-                exclude: exclude_list.join(',')
+                exclude: (exclude_list | bjob_list).join(',')
               }
               puts proxmox.update_backup_job(c['id'], new_settings)
             end
