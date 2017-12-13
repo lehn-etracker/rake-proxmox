@@ -224,9 +224,17 @@ module Rake
 
           desc 'list backup jobs'
           task 'cluster:backup:list' do
-            puts 'list_backup_jobs: '
-            proxmox.list_backup_jobs.each do |c|
-              puts " content:#{c}"
+            puts 'list of current backup jobs: '
+            proxmox.fetch_backup_jobs.each_with_index do |c, i|
+              puts "#{i + 1}.  id: #{c['id']}; starttime: #{c['starttime']}"
+            end
+          end
+
+          desc 'list parameters for backup job'
+          task 'cluster:backupjob:listparameter', %i[jobid] do |_t, args|
+            puts 'Backup Job Parameter:'
+            proxmox.fetch_backup_job(args.jobid).each do |k, v|
+              puts "#{k}: #{v} "
             end
           end
 
@@ -243,22 +251,30 @@ module Rake
             puts "Found following VM Ids in range #{args.range_min}"\
                  " to #{args.range_max}: "
             puts exclude_list.join(',')
-            proxmox.list_backup_jobs.each do |c|
+            proxmox.fetch_backup_jobs.each do |c|
               bjob_list = c['exclude'].split(',')
               unless (exclude_list - bjob_list).any?
                 puts 'Nothing to exclude. All VMs in given range are in'\
                       ' current exclude list in backup job '\
-                      "with id #{c['id']} and starttime #{c['starttime']}:"
+                      "with id #{c['id']} and starttime #{c['starttime']}."
                 next
               end
               puts 'Add following IDs to exclude list in backup job '\
                    "with id #{c['id']} and starttime #{c['starttime']}:"
-              puts exclude_list - bjob_list
+              add_to_bjob = exclude_list - bjob_list
+              puts add_to_bjob.join(',')
               new_settings = {
                 starttime: c['starttime'],
                 exclude: (exclude_list | bjob_list).join(',')
               }
-              puts proxmox.update_backup_job(c['id'], new_settings)
+              response = proxmox.update_backup_job(c['id'], new_settings)
+              next if response.nil?
+              if response.include? 'NOK: error code'
+                raise "Update of Backup Job with id #{c['id']} "\
+                      "failed: #{response}"
+              else
+                puts response
+              end
             end
           end
 

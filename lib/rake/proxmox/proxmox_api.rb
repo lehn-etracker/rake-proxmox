@@ -450,8 +450,13 @@ module Rake
       end
 
       # get backup job list
-      def list_backup_jobs
+      def fetch_backup_jobs
         http_action_get('cluster/backup')
+      end
+
+      # fetch one backup job
+      def fetch_backup_job(backupid)
+        http_action_get("cluster/backup/#{backupid}")
       end
 
       # update backup job
