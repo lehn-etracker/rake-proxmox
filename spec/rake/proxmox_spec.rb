@@ -98,6 +98,11 @@ describe Rake::Proxmox do
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req8.head.json'))))
 
+    stub_request(:put, 'https://pve1.example.com:8006/api2/json/cluster/backup/7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1')
+      .with(headers: stub_request_headers)
+      .to_return(status: 200,
+                 body: File.read(File.join(stubsdir, 'req9.resp')))
+
     # load rake tasks
     Rake::Proxmox::RakeTasks.new
   end
@@ -179,6 +184,22 @@ describe Rake::Proxmox do
       expect(task).to be_task_defined(task_name)
       my_task = Rake::Task[task_name]
       expect(my_task.arg_names).to eq([:json])
+    end
+
+    it 'should be able to exclude a certain range of container ids'\
+       ' from all backup jobs' do
+      task_name = 'proxmox:cluster:backupjob:exclude_range'
+      my_task = Rake::Task[task_name]
+      # define expectations
+      ['Add following IDs to exclude list in backup job with '\
+       'id 7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1 and starttime 20:00:',
+       'Found following VM Ids in range 6000 to 6500: ',
+       '6011,6002,6012,6013,6251'].each do |output|
+        expect(STDOUT).to receive(:puts).with(output).at_least(:once)
+      end
+      # call task
+      my_task.reenable
+      my_task.invoke('6000', '6500')
     end
 
     it 'should get correct json proxmox:cluster:backupjob:list[true]' do
