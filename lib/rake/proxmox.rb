@@ -222,24 +222,51 @@ module Rake
             end
           end
 
-          desc 'list backup jobs'
-          task 'cluster:backup:list' do
-            puts 'list of current backup jobs: '
-            proxmox.fetch_backup_jobs.each_with_index do |c, i|
-              puts "#{i + 1}.  id: #{c['id']}; starttime: #{c['starttime']}"
+          desc 'list all backup jobs'
+          task 'cluster:backupjob:list', %i[json] do |_t, args|
+            # handle arguments
+            args.with_defaults(json: 'false')
+            print_json = /true|1|j|y/ =~ args.json ? true : false
+            # fetch jobs
+            jobs = proxmox.fetch_backup_jobs
+            # handle errors
+            raise 'Error while fetching backup jobs' unless jobs.is_a?(Array)
+            # produce output
+            if print_json
+              puts jobs.to_json
+            else
+              puts 'list all backup jobs: '
+              jobs.each_with_index do |c, i|
+                puts "#{i + 1}.  id: #{c['id']}; starttime: #{c['starttime']}"
+              end
             end
           end
 
-          desc 'list parameters for backup job'
-          task 'cluster:backupjob:listparameter', %i[jobid] do |_t, args|
-            puts 'Backup Job Parameter:'
-            proxmox.fetch_backup_job(args.jobid).each do |k, v|
-              puts "#{k}: #{v} "
+          desc 'show details of backup job identified by id'
+          task 'cluster:backupjob:show', %i[jobid json] do |_t, args|
+            # handle arguments
+            args.with_defaults(json: 'false')
+            print_json = /true|1|j|y/ =~ args.json ? true : false
+            raise 'Please provide backup jobid' unless args.jobid
+            # fetch job details
+            job = proxmox.fetch_backup_job(args.jobid)
+            # handle errors
+            unless job.is_a?(Hash)
+              raise "There is no backupjob with id #{args.jobid}"
+            end
+            # produce output
+            if print_json
+              puts job.to_json
+            else
+              puts 'Backup Job Parameter:'
+              job.sort.each do |k, v|
+                puts format "%-18s: %s\n", k.to_s, v.to_s
+              end
             end
           end
 
-          desc 'exclude VM id ranges from backup jobs'
-          task 'cluster:backup:exclude_range', %i[range_min range_max] \
+          desc 'exclude VM id ranges from all backup jobs'
+          task 'cluster:backupjob:exclude_range', %i[range_min range_max] \
             do |_t, args|
             args.with_defaults(range_min: 900)
             args.with_defaults(range_max: 999)
