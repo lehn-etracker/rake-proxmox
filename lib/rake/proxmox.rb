@@ -187,7 +187,7 @@ module Rake
         update_lxc_status
         namespace 'proxmox' do
           desc 'upload template to proxmox storage'
-          task 'storage:upload:template', %i[filename node storage] \
+          task 'storage:upload:template', %i(filename node storage) \
             do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
@@ -213,7 +213,7 @@ module Rake
           end
 
           desc 'list proxmox storage'
-          task 'storage:list', %i[node storage] do |_t, args|
+          task 'storage:list', %i(node storage) do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
             print "list_storage: #{args.storage}@#{args.node}:\n"
@@ -223,7 +223,7 @@ module Rake
           end
 
           desc 'list all backup jobs'
-          task 'cluster:backupjob:list', %i[json] do |_t, args|
+          task 'cluster:backupjob:list', %i(json) do |_t, args|
             # handle arguments
             args.with_defaults(json: 'false')
             print_json = /true|1|j|y/ =~ args.json ? true : false
@@ -243,7 +243,7 @@ module Rake
           end
 
           desc 'show details of backup job identified by id'
-          task 'cluster:backupjob:show', %i[jobid json] do |_t, args|
+          task 'cluster:backupjob:show', %i(jobid json) do |_t, args|
             # handle arguments
             args.with_defaults(json: 'false')
             print_json = /true|1|j|y/ =~ args.json ? true : false
@@ -266,7 +266,7 @@ module Rake
           end
 
           desc 'exclude VM id ranges from all backup jobs'
-          task 'cluster:backupjob:exclude_range', %i[range_min range_max] \
+          task 'cluster:backupjob:exclude_range', %i(range_min range_max) \
             do |_t, args|
             args.with_defaults(range_min: 900)
             args.with_defaults(range_max: 999)
@@ -274,6 +274,11 @@ module Rake
             lxc_status.each do |vmid, _|
               exclude_list.push(vmid.to_s) if vmid >= args.range_min.to_i && \
                                               vmid < args.range_max.to_i + 1
+            end
+            if exclude_list.empty?
+              puts "No VM Ids found in range #{args.range_min}"\
+                   " to #{args.range_max}. Nothing to exclude."
+              next
             end
             puts "Found following VM Ids in range #{args.range_min}"\
                  " to #{args.range_max}: "
@@ -306,7 +311,7 @@ module Rake
           end
 
           desc 'list proxmox backups'
-          task 'backup:list', %i[vmid node storage] do |_t, args|
+          task 'backup:list', %i(vmid node storage) do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
             $stderr.puts "backup list vmid:#{args.vmid} #{args.storage}@"\
@@ -329,11 +334,11 @@ module Rake
                " :storage => 'local',"\
                " :backup_storage => 'local',"\
                ' :file]'
-          task 'backup:restore', %i[vmid
+          task 'backup:restore', %i(vmid
                                     node
                                     storage
                                     backup_storage
-                                    file] do |_t, args|
+                                    file) do |_t, args|
             print "restore args: #{args}\n"
             id = args.vmid.to_i
             args.with_defaults(storage: 'local')
@@ -347,7 +352,7 @@ module Rake
 
           desc 'destroy all but exclude_ids (defaulting to: 6002) separated by'\
                ' colon(:)'
-          task 'destroy:all', %i[exclude_ids delete_low_ids] do |t, args|
+          task 'destroy:all', %i(exclude_ids delete_low_ids) do |t, args|
             args.with_defaults(exclude_ids: '6002')
             args.with_defaults(delete_low_ids: 'false')
             exclude_ids = args.exclude_ids.split(':').map(&:to_i)
@@ -378,7 +383,7 @@ module Rake
           # create snapshot of every container
           desc 'snapshot all but exclude_ids (defaulting to: 6002) separated'\
                ' by colon(:)'
-          task 'snapshot:create:all', %i[exclude_ids name desc] do |_t, args|
+          task 'snapshot:create:all', %i(exclude_ids name desc) do |_t, args|
             args.with_defaults(exclude_ids: '6002')
             args.with_defaults(name: 'rakesnap1')
             args.with_defaults(desc: 'snapshot taken by rake task')
@@ -396,7 +401,7 @@ module Rake
           end
           # delete all snapshots with specific name
           desc 'delete all snapshots with :name'
-          task 'snapshot:delete:all', %i[exclude_ids name] do |_t, args|
+          task 'snapshot:delete:all', %i(exclude_ids name) do |_t, args|
             args.with_defaults(exclude_ids: '6002')
             args.with_defaults(name: 'rakesnap1')
             exclude_ids = args.exclude_ids.split(':').map(&:to_i)
@@ -425,7 +430,7 @@ module Rake
             end
             desc "backup #{prop['name']} [:storage => 'local',"\
                  " :mode => 'snapshot']"
-            task "backup:create:#{prop['name']}", %i[storage mode] do |_t, args|
+            task "backup:create:#{prop['name']}", %i(storage mode) do |_t, args|
               args.with_defaults(storage: 'local')
               args.with_defaults(mode: 'snapshot')
               unless lxc_backup(id, args.storage, args.mode)
@@ -434,9 +439,9 @@ module Rake
             end
             desc "restore #{prop['name']} [:storage => 'local',"\
                  ' :file]'
-            task "backup:restore:#{prop['name']}", %i[storage
+            task "backup:restore:#{prop['name']}", %i(storage
                                                       backup_storage
-                                                      file] do |_t, args|
+                                                      file) do |_t, args|
               args.with_defaults(storage: 'local')
               args.with_defaults(backup_storage: 'local')
               unless lxc_restore(id, args.storage, args.backup_storage,
@@ -446,7 +451,7 @@ module Rake
               end
             end
             desc "snapshot #{prop['name']}"
-            task "snapshot:create:#{prop['name']}", %i[name desc] do |_t, args|
+            task "snapshot:create:#{prop['name']}", %i(name desc) do |_t, args|
               args.with_defaults(name: 'rakesnap1')
               args.with_defaults(desc: 'snapshot taken by rake task')
               unless lxc_snapshot(id, args.name, args.desc)
