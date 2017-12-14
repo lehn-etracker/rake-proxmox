@@ -449,6 +449,21 @@ module Rake
         http_action_get("nodes/#{node}/storage/#{storage}/content")
       end
 
+      # get backup job list
+      def fetch_backup_jobs
+        http_action_get('cluster/backup')
+      end
+
+      # fetch one backup job
+      def fetch_backup_job(backupid)
+        http_action_get("cluster/backup/#{backupid}")
+      end
+
+      # update backup job
+      def update_backup_job(jobid, data)
+        http_action_put("cluster/backup/#{jobid}", data)
+      end
+
       # upload lxc template
       def upload_template(filename, node = @node, storage = 'local')
         "Template #{filename} does not exist locally" unless File.file? filename

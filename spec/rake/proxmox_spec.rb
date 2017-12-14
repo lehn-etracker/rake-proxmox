@@ -84,13 +84,32 @@ describe Rake::Proxmox do
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req6.head.json'))))
 
+    stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/backup/7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1')
+      .with(headers: stub_request_headers)
+      .to_return(status: 200,
+                 body: File.read(File.join(stubsdir, 'req7.resp')),
+                 headers: JSON.parse(File.read(File.join(stubsdir,
+                                                         'req7.head.json'))))
+
+    stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/backup')
+      .with(headers: stub_request_headers)
+      .to_return(status: 200,
+                 body: File.read(File.join(stubsdir, 'req8.resp')),
+                 headers: JSON.parse(File.read(File.join(stubsdir,
+                                                         'req8.head.json'))))
+
+    stub_request(:put, 'https://pve1.example.com:8006/api2/json/cluster/backup/7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1')
+      .with(headers: stub_request_headers)
+      .to_return(status: 200,
+                 body: File.read(File.join(stubsdir, 'req9.resp')))
+
     # load rake tasks
     Rake::Proxmox::RakeTasks.new
   end
 
   describe 'Rake::Proxmox::RakeTasks.new' do
     # this list contains existing containers within proxmox cluster
-    container = %w[consul-01 consul-02 consul-03 gw-01 mon-01]
+    container = %w(consul-01 consul-02 consul-03 gw-01 mon-01)
 
     it 'should have task to destroy all container' do
       task = Rake::Task
@@ -158,10 +177,106 @@ describe Rake::Proxmox do
         expect(task).to be_task_defined(task_name)
       end
     end
-  end
 
-  # it 'should bake a bar' do
-  #   # Bar.any_instance.should_receive :bake
-  #   Rake::Task['proxmox:storage:list'].invoke
-  # end
+    it 'should have task to list all cluster backup jobs' do
+      task = Rake::Task
+      task_name = 'proxmox:cluster:backupjob:list'
+      expect(task).to be_task_defined(task_name)
+      my_task = Rake::Task[task_name]
+      expect(my_task.arg_names).to eq([:json])
+    end
+
+    it 'should be able to exclude a certain range of container ids'\
+       ' from all backup jobs' do
+      task_name = 'proxmox:cluster:backupjob:exclude_range'
+      my_task = Rake::Task[task_name]
+      # define expectations
+      ['Add following IDs to exclude list in backup job with '\
+       'id 7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1 and starttime 20:00:',
+       'Found following VM Ids in range 6000 to 6500: ',
+       '6011,6002,6012,6013,6251'].each do |output|
+        expect(STDOUT).to receive(:puts).with(output).at_least(:once)
+      end
+      # call task
+      my_task.reenable
+      my_task.invoke('6000', '6500')
+    end
+
+    it 'should get correct json proxmox:cluster:backupjob:list[true]' do
+      task_name = 'proxmox:cluster:backupjob:list'
+      my_task = Rake::Task[task_name]
+      # define expectations
+      stubsdir = File.expand_path('../../support/stubs', __FILE__)
+      stub_resp = File.read(File.join(stubsdir, 'req8.resp'))
+      resp = JSON.parse(stub_resp)
+      expect(STDOUT).to receive(:puts).with(resp['data'].to_json)
+        .at_least(:once)
+      # call task
+      my_task.reenable
+      my_task.invoke('true')
+    end
+
+    it 'should get correct data proxmox:cluster:backupjob:list' do
+      task_name = 'proxmox:cluster:backupjob:list'
+      my_task = Rake::Task[task_name]
+      # define expectations
+      ['list all backup jobs: ',
+       '1.  id: 7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1;'\
+       ' starttime: 20:00'].each do |output|
+        expect(STDOUT).to receive(:puts).with(output).at_least(:once)
+      end
+      # call task
+      my_task.reenable
+      my_task.invoke
+    end
+
+    it 'should have task to show specific cluster backup job' do
+      task = Rake::Task
+      task_name = 'proxmox:cluster:backupjob:show'
+      expect(task).to be_task_defined(task_name)
+      my_task = Rake::Task[task_name]
+      expect(my_task.arg_names).to eq([:jobid, :json])
+    end
+
+    it 'should get correct json from cluster backup job show command' do
+      task_name = 'proxmox:cluster:backupjob:show'
+      my_task = Rake::Task[task_name]
+      jobid = '7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1'
+      # define expectations
+      stubsdir = File.expand_path('../../support/stubs', __FILE__)
+      stub_resp = File.read(File.join(stubsdir, 'req7.resp'))
+      resp = JSON.parse(stub_resp)
+      expect(STDOUT).to receive(:puts).with(resp['data'].to_json)
+        .at_least(:once)
+      # call task
+      my_task.reenable
+      my_task.invoke(jobid, 'true')
+    end
+
+    it 'should get correct print from cluster backup job show command' do
+      task_name = 'proxmox:cluster:backupjob:show'
+      my_task = Rake::Task[task_name]
+      jobid = '7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1'
+      # define expectations
+      ['Backup Job Parameter:',
+       "all               : 1\n",
+       "compress          : lzo\n",
+       "dow               : mon,tue,wed,thu,fri,sat,sun\n",
+       "enabled           : 1\n",
+       "exclude           : 909,913,940\n",
+       "id                : 7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1\n",
+       "mailnotification  : failure\n",
+       "mailto            : sysadmin@example.net\n",
+       "mode              : snapshot\n",
+       "quiet             : 1\n",
+       "starttime         : 20:00\n",
+       "storage           : store03\n"]
+        .each do |output|
+        expect(STDOUT).to receive(:puts).with(output).at_least(:once)
+      end
+      # call task
+      my_task.reenable
+      my_task.invoke(jobid)
+    end
+  end
 end
