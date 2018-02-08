@@ -187,25 +187,39 @@ module Rake
         update_lxc_status
         namespace 'proxmox' do
           desc 'upload template to proxmox storage'
-          task 'storage:upload:template', %i(filename node storage) \
-            do |_t, args|
+          task 'storage:upload:template', %i[filename
+                                             node
+                                             storage
+                                             force] do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
+            args.with_defaults(force: 'false')
             # get upload filename
             upload_file_split = File.split(args.filename)
             upload_filename = upload_file_split[1]
+            upload_size_b = File.size?(args.filename)
             # validate file does not already exist
             should_i_upload = true
             proxmox.list_storage(args.node, args.storage).each do |c|
               (_c_storage, c_path) = c['volid'].split(':')
               (_c_content, c_name) = c_path.split('/')
               next unless c_name == upload_filename
-              puts "Template #{upload_filename} already on server"
-              should_i_upload = false
+              # check filesize
+              if c['size'].to_i >= upload_size_b.to_i
+                puts "Template #{upload_filename} already on server"\
+                     " (#{c['size'].to_i / 1024 / 1024}MB)"
+                should_i_upload = false
+              else
+                puts 'Template on Proxmox node has wrong size.'\
+                     " Local: #{upload_size_b.to_i / 1024 / 1024}MB"\
+                     " Proxmox: #{c['size'].to_i / 1024 / 1024}MB"
+              end
+              # found image leave loop
               break
             end
-            if should_i_upload
-              puts "upload template: #{args.filename} to #{args.storage}@#{args.node}:\n"
+            if should_i_upload || args.force.to_s != 'false'
+              puts "upload template: #{args.filename} to "\
+                   "#{args.storage}@#{args.node}:\n"
               r = proxmox.upload_template(args.filename, args.node,
                                           args.storage)
               puts "upload result: #{r}"
@@ -213,7 +227,7 @@ module Rake
           end
 
           desc 'list proxmox storage'
-          task 'storage:list', %i(node storage) do |_t, args|
+          task 'storage:list', %i[node storage] do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
             print "list_storage: #{args.storage}@#{args.node}:\n"
@@ -223,7 +237,7 @@ module Rake
           end
 
           desc 'list all backup jobs'
-          task 'cluster:backupjob:list', %i(json) do |_t, args|
+          task 'cluster:backupjob:list', %i[json] do |_t, args|
             # handle arguments
             args.with_defaults(json: 'false')
             print_json = /true|1|j|y/ =~ args.json ? true : false
@@ -243,7 +257,7 @@ module Rake
           end
 
           desc 'show details of backup job identified by id'
-          task 'cluster:backupjob:show', %i(jobid json) do |_t, args|
+          task 'cluster:backupjob:show', %i[jobid json] do |_t, args|
             # handle arguments
             args.with_defaults(json: 'false')
             print_json = /true|1|j|y/ =~ args.json ? true : false
@@ -266,7 +280,7 @@ module Rake
           end
 
           desc 'exclude VM id ranges from all backup jobs'
-          task 'cluster:backupjob:exclude_range', %i(range_min range_max) \
+          task 'cluster:backupjob:exclude_range', %i[range_min range_max] \
             do |_t, args|
             args.with_defaults(range_min: 900)
             args.with_defaults(range_max: 999)
@@ -311,7 +325,7 @@ module Rake
           end
 
           desc 'list proxmox backups'
-          task 'backup:list', %i(vmid node storage) do |_t, args|
+          task 'backup:list', %i[vmid node storage] do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
             $stderr.puts "backup list vmid:#{args.vmid} #{args.storage}@"\
@@ -334,11 +348,11 @@ module Rake
                " :storage => 'local',"\
                " :backup_storage => 'local',"\
                ' :file]'
-          task 'backup:restore', %i(vmid
+          task 'backup:restore', %i[vmid
                                     node
                                     storage
                                     backup_storage
-                                    file) do |_t, args|
+                                    file] do |_t, args|
             print "restore args: #{args}\n"
             id = args.vmid.to_i
             args.with_defaults(storage: 'local')
@@ -352,7 +366,7 @@ module Rake
 
           desc 'destroy all but exclude_ids (defaulting to: 6002) separated by'\
                ' colon(:)'
-          task 'destroy:all', %i(exclude_ids delete_low_ids) do |t, args|
+          task 'destroy:all', %i[exclude_ids delete_low_ids] do |t, args|
             args.with_defaults(exclude_ids: '6002')
             args.with_defaults(delete_low_ids: 'false')
             exclude_ids = args.exclude_ids.split(':').map(&:to_i)
@@ -383,7 +397,7 @@ module Rake
           # create snapshot of every container
           desc 'snapshot all but exclude_ids (defaulting to: 6002) separated'\
                ' by colon(:)'
-          task 'snapshot:create:all', %i(exclude_ids name desc) do |_t, args|
+          task 'snapshot:create:all', %i[exclude_ids name desc] do |_t, args|
             args.with_defaults(exclude_ids: '6002')
             args.with_defaults(name: 'rakesnap1')
             args.with_defaults(desc: 'snapshot taken by rake task')
@@ -401,7 +415,7 @@ module Rake
           end
           # delete all snapshots with specific name
           desc 'delete all snapshots with :name'
-          task 'snapshot:delete:all', %i(exclude_ids name) do |_t, args|
+          task 'snapshot:delete:all', %i[exclude_ids name] do |_t, args|
             args.with_defaults(exclude_ids: '6002')
             args.with_defaults(name: 'rakesnap1')
             exclude_ids = args.exclude_ids.split(':').map(&:to_i)
@@ -430,7 +444,7 @@ module Rake
             end
             desc "backup #{prop['name']} [:storage => 'local',"\
                  " :mode => 'snapshot']"
-            task "backup:create:#{prop['name']}", %i(storage mode) do |_t, args|
+            task "backup:create:#{prop['name']}", %i[storage mode] do |_t, args|
               args.with_defaults(storage: 'local')
               args.with_defaults(mode: 'snapshot')
               unless lxc_backup(id, args.storage, args.mode)
@@ -439,9 +453,9 @@ module Rake
             end
             desc "restore #{prop['name']} [:storage => 'local',"\
                  ' :file]'
-            task "backup:restore:#{prop['name']}", %i(storage
+            task "backup:restore:#{prop['name']}", %i[storage
                                                       backup_storage
-                                                      file) do |_t, args|
+                                                      file] do |_t, args|
               args.with_defaults(storage: 'local')
               args.with_defaults(backup_storage: 'local')
               unless lxc_restore(id, args.storage, args.backup_storage,
@@ -451,7 +465,7 @@ module Rake
               end
             end
             desc "snapshot #{prop['name']}"
-            task "snapshot:create:#{prop['name']}", %i(name desc) do |_t, args|
+            task "snapshot:create:#{prop['name']}", %i[name desc] do |_t, args|
               args.with_defaults(name: 'rakesnap1')
               args.with_defaults(desc: 'snapshot taken by rake task')
               unless lxc_snapshot(id, args.name, args.desc)
