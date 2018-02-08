@@ -210,8 +210,8 @@ module Rake
                      " (#{c['size'].to_i / 1024 / 1024}MB)"
                 should_i_upload = false
               else
-                puts 'Template has wrong size'\
-                     " Local: #{upload_filename.to_i / 1024 / 1024}MB"\
+                puts 'Template on Proxmox node has wrong size.'\
+                     " Local: #{upload_size_b.to_i / 1024 / 1024}MB"\
                      " Proxmox: #{c['size'].to_i / 1024 / 1024}MB"
               end
               # found image leave loop
