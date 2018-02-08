@@ -187,25 +187,39 @@ module Rake
         update_lxc_status
         namespace 'proxmox' do
           desc 'upload template to proxmox storage'
-          task 'storage:upload:template', %i(filename node storage) \
-            do |_t, args|
+          task 'storage:upload:template', %i[filename
+                                             node
+                                             storage
+                                             force] do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
+            args.with_defaults(force: 'false')
             # get upload filename
             upload_file_split = File.split(args.filename)
             upload_filename = upload_file_split[1]
+            upload_size_b = File.size?(args.filename)
             # validate file does not already exist
             should_i_upload = true
             proxmox.list_storage(args.node, args.storage).each do |c|
               (_c_storage, c_path) = c['volid'].split(':')
               (_c_content, c_name) = c_path.split('/')
               next unless c_name == upload_filename
-              puts "Template #{upload_filename} already on server"
-              should_i_upload = false
+              # check filesize
+              if c['size'].to_i >= upload_size_b.to_i
+                puts "Template #{upload_filename} already on server"\
+                     " (#{c['size'].to_i / 1024 / 1024}MB)"
+                should_i_upload = false
+              else
+                puts 'Template has wrong size'\
+                     " Local: #{upload_filename.to_i / 1024 / 1024}MB"\
+                     " Proxmox: #{c['size'].to_i / 1024 / 1024}MB"
+              end
+              # found image leave loop
               break
             end
-            if should_i_upload
-              puts "upload template: #{args.filename} to #{args.storage}@#{args.node}:\n"
+            if should_i_upload || args.force.to_s != 'false'
+              puts "upload template: #{args.filename} to "\
+                   "#{args.storage}@#{args.node}:\n"
               r = proxmox.upload_template(args.filename, args.node,
                                           args.storage)
               puts "upload result: #{r}"
