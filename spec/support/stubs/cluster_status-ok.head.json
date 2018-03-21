@@ -1,0 +1,10 @@
+{
+  "cache_control": "max-age=0",
+  "connection": "close",
+  "date": "Tue, 24 Oct 2017 15:38:03 GMT",
+  "pragma": "no-cache",
+  "server": "pve-api-daemon/3.0",
+  "expires": "Tue, 24 Oct 2017 15:38:03 GMT",
+  "content-length": 463,
+  "content-type": "application/json;charset=UTF-8"
+}

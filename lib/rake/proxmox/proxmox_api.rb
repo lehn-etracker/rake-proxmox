@@ -427,6 +427,11 @@ module Rake
         http_action_get("cluster/resources?type=#{type}")
       end
 
+      # get cluster status
+      def cluster_status
+        http_action_get('cluster/status')
+      end
+
       # Backup VM
       def vzdump_single(vmid, node = @node, storage = 'local',
                         mode = 'snapshot', compress = 1, remove = 1, pigz = 1,

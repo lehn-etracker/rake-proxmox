@@ -6,10 +6,8 @@ module Rake
   module Proxmox
     # This class provides rake tasks to control proxmox cluster through api.
     #
-    # rubocop:disable Metrics/ClassLength
     class RakeTasks < ::Rake::TaskLib
       # @yield [self] gives itself to the block
-      # rubocop:disable Metrics/AbcSize
       def initialize(ssl_options = {})
         unless ENV.include?('PROXMOX_PVE_CLUSTER')
           puts ''
@@ -186,6 +184,30 @@ module Rake
         desc 'Proxmox'
         update_lxc_status
         namespace 'proxmox' do
+          desc 'get proxmox cluster status'
+          task 'cluster:status' do
+            status = { nodes: 0, cluster_name: nil }
+            proxmox.cluster_status.each do |entry|
+              case entry['type']
+              when 'cluster'
+                unless entry['quorate'] == 1
+                  raise "Proxmox Cluster #{entry} is not quorate"
+                end
+                status[:cluster_name] = entry['name']
+              when 'node'
+                if entry['level'].nil?
+                  node_name = entry.sort.map { |k, v| "#{k}=#{v}" }.join(',')
+                  raise "Proxmox Node #{node_name} has errors"
+                end
+                status[:nodes] += 1
+              else
+                raise "unknown entry: #{entry}"
+              end
+            end
+            puts "Proxmox Cluster #{status[:cluster_name]} online with"\
+                 " #{status[:nodes]} nodes"
+          end
+
           desc 'upload template to proxmox storage'
           task 'storage:upload:template', %i[filename
                                              node

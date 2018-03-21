@@ -8,14 +8,26 @@ describe Rake::Proxmox do
     expect(Rake::Proxmox::VERSION).not_to be nil
   end
 
+  let(:stubsdir) do
+    File.expand_path('../../support/stubs', __FILE__)
+  end
+
+  # get headers for stub requests with Cookie and CSRFPreventionToken
+  let(:stub_request_headers) do
+    JSON.parse(
+      File.read(
+        File.join(stubsdir,
+                  'req-headers.json')
+      )
+    )
+  end
+
   before do
     ENV['PROXMOX_PVE_CLUSTER'] = 'https://pve1.example.com:8006/api2/json/'
     ENV['PROXMOX_NODE'] = 'pve1'
     ENV['PROXMOX_REALM'] = 'pve'
     ENV['PROXMOX_USERNAME'] = 'vagrant'
     ENV['PROXMOX_PASSWORD'] = 'vagrant'
-    # stubsdir
-    stubsdir = File.expand_path('../../support/stubs', __FILE__)
 
     # stubs for proxmox api calls
     stub_request(:post,
@@ -36,10 +48,6 @@ describe Rake::Proxmox do
                                        File.join(stubsdir,
                                                  'access-ticket.head.json')
                  )))
-
-    # get headers for stub requests with Cookie and CSRFPreventionToken
-    stub_request_headers = JSON.parse(File.read(File.join(stubsdir,
-                                                          'req-headers.json')))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/'\
                        'cluster/resources?type=vm')\
@@ -103,13 +111,26 @@ describe Rake::Proxmox do
       .to_return(status: 200,
                  body: File.read(File.join(stubsdir, 'req9.resp')))
 
+    stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/status')
+      .with(headers: stub_request_headers)
+      .to_return(status: 200,
+                 body: File.read(
+                   File.join(stubsdir, 'cluster_status.body.resp')
+                 ),
+                 headers: JSON.parse(
+                   File.read(
+                     File.join(stubsdir,
+                               'cluster_status.head.json')
+                   )
+                 ))
+
     # load rake tasks
     Rake::Proxmox::RakeTasks.new
   end
 
   describe 'Rake::Proxmox::RakeTasks.new' do
     # this list contains existing containers within proxmox cluster
-    container = %w(consul-01 consul-02 consul-03 gw-01 mon-01)
+    container = %w[consul-01 consul-02 consul-03 gw-01 mon-01]
 
     it 'should have task to destroy all container' do
       task = Rake::Task
@@ -210,7 +231,7 @@ describe Rake::Proxmox do
       stub_resp = File.read(File.join(stubsdir, 'req8.resp'))
       resp = JSON.parse(stub_resp)
       expect(STDOUT).to receive(:puts).with(resp['data'].to_json)
-        .at_least(:once)
+                                      .at_least(:once)
       # call task
       my_task.reenable
       my_task.invoke('true')
@@ -235,7 +256,7 @@ describe Rake::Proxmox do
       task_name = 'proxmox:cluster:backupjob:show'
       expect(task).to be_task_defined(task_name)
       my_task = Rake::Task[task_name]
-      expect(my_task.arg_names).to eq([:jobid, :json])
+      expect(my_task.arg_names).to eq(%i[jobid json])
     end
 
     it 'should get correct json from cluster backup job show command' do
@@ -247,7 +268,7 @@ describe Rake::Proxmox do
       stub_resp = File.read(File.join(stubsdir, 'req7.resp'))
       resp = JSON.parse(stub_resp)
       expect(STDOUT).to receive(:puts).with(resp['data'].to_json)
-        .at_least(:once)
+                                      .at_least(:once)
       # call task
       my_task.reenable
       my_task.invoke(jobid, 'true')
@@ -277,6 +298,54 @@ describe Rake::Proxmox do
       # call task
       my_task.reenable
       my_task.invoke(jobid)
+    end
+
+    it 'should have task to get cluster status' do
+      task = Rake::Task
+      expect(task).to be_task_defined('proxmox:cluster:status')
+    end
+
+    context 'cluster not ok' do
+      it 'task proxmox:cluster:status should raise error if cluster not ok' do
+        task_name = 'proxmox:cluster:status'
+        my_task = Rake::Task[task_name]
+        my_task.reenable
+        # define expectations
+        expect { my_task.invoke('true') }.to raise_error(
+          RuntimeError,
+          'Proxmox Node id=node/hpvdev03,ip=192.168.124.72,level=,local=0'\
+            ',name=hpvdev03,nodeid=3,online=1,type=node has errors'
+        )
+      end
+    end
+
+    context 'cluster ok' do
+      before do
+        stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/status')
+          .with(headers: stub_request_headers)
+          .to_return(status: 200,
+                     body: File.read(
+                       File.join(stubsdir, 'cluster_status-ok.body.resp')
+                     ),
+                     headers: JSON.parse(
+                       File.read(
+                         File.join(stubsdir,
+                                   'cluster_status-ok.head.json')
+                       )
+                     ))
+      end
+
+      it 'task proxmox:cluster:status should return message if cluster ok' do
+        task_name = 'proxmox:cluster:status'
+        my_task = Rake::Task[task_name]
+        my_task.reenable
+        # define expectations
+        expect(STDOUT).to receive(:puts).with(
+          'Proxmox Cluster HPV-DEV-CLUSTER online with 3 nodes'
+        ).at_least(:once)
+        # call task
+        expect { my_task.invoke('true') }.not_to raise_error
+      end
     end
   end
 end
