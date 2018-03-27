@@ -12,16 +12,6 @@ describe Rake::Proxmox do
     File.expand_path('../../support/stubs', __FILE__)
   end
 
-  # get headers for stub requests with Cookie and CSRFPreventionToken
-  let(:stub_request_headers) do
-    JSON.parse(
-      File.read(
-        File.join(stubsdir,
-                  'req-headers.json')
-      )
-    )
-  end
-
   before do
     ENV['PROXMOX_PVE_CLUSTER'] = 'https://pve1.example.com:8006/api2/json/'
     ENV['PROXMOX_NODE'] = 'pve1'
@@ -36,14 +26,11 @@ describe Rake::Proxmox do
                     'realm' => 'pve',
                     'username' => 'vagrant' },
             headers: { 'Accept' => '*/*',
-                       'Accept-Encoding' => 'gzip, deflate',
-                       'Content-Length' => '43',
+                       'Accept-Encoding' => 'gzip,deflate',
                        'Content-Type' => 'application/x-www-form-urlencoded',
-                       'Host' => 'pve1.example.com:8006',
-                       'User-Agent' => 'rest-client/2.0.2 (linux-gnu x86_64) '\
-                                       'ruby/2.3.1p112' })
+                       'User-Agent' => /.*/ })
       .to_return(status: 200,
-                 body: File.read(File.join(stubsdir, 'access-ticket.resp.gz')),
+                 body: File.read(File.join(stubsdir, 'access-ticket.resp')),
                  headers: JSON.parse(File.read(
                                        File.join(stubsdir,
                                                  'access-ticket.head.json')
@@ -51,68 +38,58 @@ describe Rake::Proxmox do
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/'\
                        'cluster/resources?type=vm')\
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
-                 body: File.read(File.join(stubsdir, 'req1.resp.gz')),
+                 body: File.read(File.join(stubsdir, 'req1.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req1.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/nodes/hpvdev01/lxc/6011/snapshot')
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
                  body: File.read(File.join(stubsdir, 'req2.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req2.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/nodes/hpvdev01/lxc/6002/snapshot')
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
                  body: File.read(File.join(stubsdir, 'req3.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req3.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/nodes/hpvdev02/lxc/6012/snapshot')
-      .with(headers: stub_request_headers)
       .to_return(status: 595,
                  body: File.read(File.join(stubsdir, 'req4.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req4.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/nodes/hpvdev03/lxc/6013/snapshot')
-      .with(headers: stub_request_headers)
       .to_return(status: 595,
                  body: File.read(File.join(stubsdir, 'req5.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req5.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/nodes/hpvdev01/lxc/6251/snapshot')
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
                  body: File.read(File.join(stubsdir, 'req6.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req6.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/backup/7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1')
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
                  body: File.read(File.join(stubsdir, 'req7.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req7.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/backup')
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
                  body: File.read(File.join(stubsdir, 'req8.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req8.head.json'))))
 
     stub_request(:put, 'https://pve1.example.com:8006/api2/json/cluster/backup/7ed5a5dc646bddbc7ef38f5f1fd8426595b21e98:1')
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
                  body: File.read(File.join(stubsdir, 'req9.resp')))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/status')
-      .with(headers: stub_request_headers)
       .to_return(status: 200,
                  body: File.read(
                    File.join(stubsdir, 'cluster_status.body.resp')
@@ -231,7 +208,7 @@ describe Rake::Proxmox do
       stub_resp = File.read(File.join(stubsdir, 'req8.resp'))
       resp = JSON.parse(stub_resp)
       expect(STDOUT).to receive(:puts).with(resp['data'].to_json)
-                                      .at_least(:once)
+        .at_least(:once)
       # call task
       my_task.reenable
       my_task.invoke('true')
@@ -268,7 +245,7 @@ describe Rake::Proxmox do
       stub_resp = File.read(File.join(stubsdir, 'req7.resp'))
       resp = JSON.parse(stub_resp)
       expect(STDOUT).to receive(:puts).with(resp['data'].to_json)
-                                      .at_least(:once)
+        .at_least(:once)
       # call task
       my_task.reenable
       my_task.invoke(jobid, 'true')
@@ -322,7 +299,6 @@ describe Rake::Proxmox do
     context 'cluster ok' do
       before do
         stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/status')
-          .with(headers: stub_request_headers)
           .to_return(status: 200,
                      body: File.read(
                        File.join(stubsdir, 'cluster_status-ok.body.resp')
