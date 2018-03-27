@@ -46,6 +46,12 @@ module Rake
           conn.request :multipart
           conn.request :url_encoded
 
+          # allow Faraday to retry request
+          conn.request :retry, max: 3, interval: 0.05,
+                               interval_randomness: 0.5, backoff_factor: 2,
+                               exceptions: %w[HTTPClient::KeepAliveDisconnected
+                                              Timeout::Error]
+
           conn.response :json, content_type: /\bjson$/
           conn.response :logger, logger do |log|
             log.filter(/(Csrfpreventiontoken:)\s+(.*)$/, '\1 "[REMOVED]"')
