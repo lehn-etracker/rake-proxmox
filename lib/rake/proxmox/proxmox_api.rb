@@ -1,5 +1,8 @@
-require 'rest_client'
+require 'faraday'
+require 'faraday_middleware'
+require 'httpclient'
 require 'json'
+require 'logger'
 
 module Rake
   module Proxmox
@@ -24,8 +27,9 @@ module Rake
       #                        {verify_ssl: false})
       #
       # rubocop:disable Metrics/ParameterLists
+      # rubocop:disable Metrics/AbcSize
       def initialize(pve_cluster, node, username, password, realm,
-                     ssl_options = {})
+                     ssl_options = {}, logger = nil)
         @pve_cluster = pve_cluster
         @node = node
         @username = username
@@ -33,7 +37,33 @@ module Rake
         @realm = realm
         @ssl_options = ssl_options
         @connection_status = 'error'
-        @site = RestClient::Resource.new(@pve_cluster, @ssl_options)
+        use_default_logger = logger.nil?
+        logger ||= Logger.new STDERR
+        # set default loglevel
+        logger.level = Logger::WARN if use_default_logger
+        user_agent = "rake-proxmox #{Rake::Proxmox::VERSION}"
+        @site = Faraday.new(url: @pve_cluster, headers: {
+                              user_agent: user_agent
+                            }) do |conn|
+          # POST/PUT params encoders:
+          conn.request :multipart
+          conn.request :url_encoded
+
+          # allow Faraday to retry request
+          conn.request :retry, max: 3, interval: 0.05,
+                               interval_randomness: 0.5, backoff_factor: 2,
+                               exceptions: %w[HTTPClient::KeepAliveDisconnected
+                                              Timeout::Error]
+
+          conn.response :json, content_type: /\bjson$/
+          conn.response :logger, logger do |log|
+            log.filter(/(Csrfpreventiontoken:)\s+(.*)$/, '\1 "[REMOVED]"')
+            log.filter(/(Cookie:)\s+(.*)$/, '\1 "[REMOVED]"')
+          end
+
+          # Last middleware must be the adapter:
+          conn.adapter :httpclient
+        end
         @auth_params = create_ticket
       end
 
@@ -474,7 +504,7 @@ module Rake
         "Template #{filename} does not exist locally" unless File.file? filename
         data = {
           content: 'vztmpl',
-          filename: File.new(filename)
+          filename: Faraday::UploadIO.new(filename, 'application/gzip')
         }
         http_action_post("nodes/#{node}/storage/#{storage}/upload", data)
       end
@@ -484,18 +514,17 @@ module Rake
       # Methods manages auth
       def create_ticket
         post_param = { username: @username, realm: @realm, password: @password }
-        @site['access/ticket'].post post_param do |resp, _req, _res, &_block|
-          if resp.code == 200
-            extract_ticket resp
-          else
-            @connection_status = 'error'
-          end
+        resp = @site.post('access/ticket', post_param)
+        if resp.success?
+          extract_ticket resp
+        else
+          @connection_status = 'error'
         end
       end
 
       # Method create ticket
       def extract_ticket(response)
-        data = JSON.parse(response.body)
+        data = response.body
         ticket = data['data']['ticket']
         csrf_prevention_token = data['data']['CSRFPreventionToken']
         unless ticket.nil?
@@ -508,40 +537,52 @@ module Rake
         }
       end
 
+      def json_decode(response)
+        if response.headers.include?('Content-Type') &&
+           response.headers['Content-Type'] =~ /\bjson/
+          response.body
+        else
+          JSON.parse(response.body)
+        end
+      end
+
       # Extract data or return error
       def check_response(response)
-        if response.code == 200
-          JSON.parse(response.body)['data']
+        if response.success?
+          json_decode(response)['data']
         else
-          'NOK: error code = ' + response.code.to_s \
+          'NOK: error code = ' + response.status.to_s \
           + 'data = ' + response.body + "\n"
         end
       end
 
       # Methods manage http dialogs
-      def http_action_post(url, data = {})
-        # print "POST #{url}\n#{data}\n"
-        @site[url].post data, @auth_params do |resp, _req, _res, &_block|
-          check_response resp
+      def http_action_post(url, payload = {})
+        resp = @site.post(url, payload) do |req|
+          req.headers.merge!(@auth_params)
         end
+        check_response resp
       end
 
       def http_action_put(url, data = {})
-        @site[url].put data, @auth_params do |resp, _req, _res, &_block|
-          check_response resp
+        resp = @site.put(url, data) do |req|
+          req.headers.merge!(@auth_params)
         end
+        check_response resp
       end
 
       def http_action_get(url, data = {})
-        @site[url].get @auth_params.merge(data) do |resp, _req, _res, &_block|
-          check_response resp
+        resp = @site.get(url, data) do |req|
+          req.headers.merge!(@auth_params)
         end
+        check_response resp
       end
 
       def http_action_delete(url)
-        @site[url].delete @auth_params do |resp, _req, _res, &_block|
-          check_response resp
+        resp = @site.delete(url) do |req|
+          req.headers.merge!(@auth_params)
         end
+        check_response resp
       end
     end
   end
