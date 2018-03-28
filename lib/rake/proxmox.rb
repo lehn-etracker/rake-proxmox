@@ -9,7 +9,8 @@ module Rake
     class RakeTasks < ::Rake::TaskLib
       # @yield [self] gives itself to the block
       def initialize(ssl_options = {}, logger = nil)
-        unless ENV.include?('PROXMOX_PVE_CLUSTER')
+        unless ENV.include?('PROXMOX_PVE_CLUSTER') &&
+               ENV.include?('PROXMOX_NODE')
           puts ''
           puts '# Proxmox Tasks are not available without correct environment'
           puts '#'
@@ -18,6 +19,8 @@ module Rake
           puts '# export PROXMOX_PVE_CLUSTER='\
             'https://pve1.example.com:8006/api2/json/'
           puts '# export PROXMOX_NODE=pve1'
+          puts '#'
+          puts '# optional add following variables if needed'
           puts '# export PROXMOX_REALM=pve'
           puts '# export PROXMOX_USERNAME=vagrant'
           puts '# export PROXMOX_PASSWORD=vagrant'
@@ -28,9 +31,9 @@ module Rake
         @proxmox = Rake::Proxmox::ProxmoxApi.new(
           ENV['PROXMOX_PVE_CLUSTER'],
           ENV['PROXMOX_NODE'],
-          ENV['PROXMOX_USERNAME'],
-          ENV['PROXMOX_PASSWORD'],
-          ENV['PROXMOX_REALM'],
+          ENV['PROXMOX_USERNAME'] ? ENV['PROXMOX_USERNAME'] : 'vagrant',
+          ENV['PROXMOX_PASSWORD'] ? ENV['PROXMOX_PASSWORD'] : 'vagrant',
+          ENV['PROXMOX_REALM'] ? ENV['PROXMOX_REALM'] : 'pve',
           ssl_options,
           logger
         )
