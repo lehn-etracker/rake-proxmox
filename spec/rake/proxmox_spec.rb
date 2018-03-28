@@ -323,5 +323,38 @@ describe Rake::Proxmox do
         expect { my_task.invoke('true') }.not_to raise_error
       end
     end
+
+    context 'with custom logger' do
+      before do
+        stub_request(:get, 'https://pve1.example.com:8006/api2/json/cluster/status')
+          .to_return(status: 200,
+                     body: File.read(
+                       File.join(stubsdir, 'cluster_status-ok.body.resp')
+                     ),
+                     headers: JSON.parse(
+                       File.read(
+                         File.join(stubsdir,
+                                   'cluster_status-ok.head.json')
+                       )
+                     ))
+        # load rake tasks with logger
+        mylogger = Logger.new STDERR
+        mylogger.level = Logger::INFO
+        Rake.application.clear
+        Rake::Proxmox::RakeTasks.new({}, mylogger)
+      end
+
+      it 'task proxmox:cluster:status works with custom logger' do
+        task_name = 'proxmox:cluster:status'
+        my_task = Rake::Task[task_name]
+        my_task.reenable
+        # define expectations
+        expect(STDOUT).to receive(:puts).with(
+          'Proxmox Cluster HPV-DEV-CLUSTER online with 3 nodes'
+        ).at_least(:once)
+        # call task
+        expect { my_task.invoke('true') }.not_to raise_error
+      end
+    end
   end
 end

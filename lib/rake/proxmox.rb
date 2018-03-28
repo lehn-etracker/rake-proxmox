@@ -8,7 +8,7 @@ module Rake
     #
     class RakeTasks < ::Rake::TaskLib
       # @yield [self] gives itself to the block
-      def initialize(ssl_options = {})
+      def initialize(ssl_options = {}, logger = nil)
         unless ENV.include?('PROXMOX_PVE_CLUSTER')
           puts ''
           puts '# Proxmox Tasks are not available without correct environment'
@@ -31,7 +31,8 @@ module Rake
           ENV['PROXMOX_USERNAME'],
           ENV['PROXMOX_PASSWORD'],
           ENV['PROXMOX_REALM'],
-          ssl_options
+          ssl_options,
+          logger
         )
 
         # container for current lxc status
