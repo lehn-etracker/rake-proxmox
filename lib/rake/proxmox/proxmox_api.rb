@@ -37,7 +37,10 @@ module Rake
         @realm = realm
         @ssl_options = ssl_options
         @connection_status = 'error'
+        use_default_logger = logger.nil?
         logger ||= Logger.new STDERR
+        # set default loglevel
+        logger.level = Logger::WARN if use_default_logger
         user_agent = "rake-proxmox #{Rake::Proxmox::VERSION}"
         @site = Faraday.new(url: @pve_cluster, headers: {
                               user_agent: user_agent
