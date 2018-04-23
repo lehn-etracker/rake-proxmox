@@ -1,6 +1,10 @@
 # Rake::Proxmox
 
+`rake::proxmox` provides Rake tasks to manage Proxmox VE Cluster.
+
 Inspired by [nledez/proxmox](https://github.com/nledez/proxmox)
+
+[![Build Status](https://travis-ci.org/lehn-etracker/rake-proxmox.svg?branch=master)](https://travis-ci.org/lehn-etracker/rake-proxmox)
 
 ## Installation
 
