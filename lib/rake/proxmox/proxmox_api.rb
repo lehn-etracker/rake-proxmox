@@ -62,7 +62,9 @@ module Rake
           end
 
           # Last middleware must be the adapter:
-          conn.adapter :httpclient
+          conn.adapter :httpclient do |client| # yields HTTPClient
+            client.cookie_manager = nil
+          end
         end
         @auth_params = create_ticket
       end
