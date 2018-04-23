@@ -68,7 +68,7 @@ describe Rake::Proxmox do
                                                          'req5.head.json'))))
 
     stub_request(:get, 'https://pve1.example.com:8006/api2/json/nodes/hpvdev01/lxc/6251/snapshot')
-      .to_return(status: 200,
+      .to_return(status: 500,
                  body: File.read(File.join(stubsdir, 'req6.resp')),
                  headers: JSON.parse(File.read(File.join(stubsdir,
                                                          'req6.head.json'))))

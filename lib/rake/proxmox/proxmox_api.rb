@@ -553,8 +553,7 @@ module Rake
         if response.success?
           json_decode(response)['data']
         else
-          'NOK: error code = ' + response.status.to_s \
-          + 'data = ' + response.body + "\n"
+          "NOK: error code = '#{response.status}' data = '#{response.body}'\n"
         end
       end
 
