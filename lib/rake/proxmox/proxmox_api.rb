@@ -62,7 +62,9 @@ module Rake
           end
 
           # Last middleware must be the adapter:
-          conn.adapter :httpclient
+          conn.adapter :httpclient do |client| # yields HTTPClient
+            client.cookie_manager = nil
+          end
         end
         @auth_params = create_ticket
       end
@@ -551,8 +553,7 @@ module Rake
         if response.success?
           json_decode(response)['data']
         else
-          'NOK: error code = ' + response.status.to_s \
-          + 'data = ' + response.body + "\n"
+          "NOK: error code = '#{response.status}' data = '#{response.body}'\n"
         end
       end
 
