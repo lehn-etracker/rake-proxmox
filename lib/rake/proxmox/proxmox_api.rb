@@ -486,6 +486,11 @@ module Rake
         http_action_get("nodes/#{node}/storage/#{storage}/content")
       end
 
+      # delete volume from storage
+      def storage_volume_delete(volume, node = @node, storage = 'local')
+        http_action_delete "nodes/#{node}/storage/#{storage}/content/#{volume}"
+      end
+
       # get backup job list
       def fetch_backup_jobs
         http_action_get('cluster/backup')
