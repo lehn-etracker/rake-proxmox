@@ -262,6 +262,16 @@ module Rake
             end
           end
 
+          desc 'delete proxmox storage volume'
+          task 'storage:delete:volume', %i[volume node storage] do |_t, args|
+            args.with_defaults(storage: 'local')
+            args.with_defaults(node: ENV['PROXMOX_NODE'])
+            taskid = proxmox.storage_volume_delete(args.volume,
+                                                   args.node,
+                                                   args.storage)
+            wait_for_task(taskid, args.node)
+          end
+
           desc 'list all backup jobs'
           task 'cluster:backupjob:list', %i[json] do |_t, args|
             # handle arguments
@@ -354,7 +364,7 @@ module Rake
           task 'backup:list', %i[vmid node storage] do |_t, args|
             args.with_defaults(storage: 'local')
             args.with_defaults(node: ENV['PROXMOX_NODE'])
-            $stderr.puts "backup list vmid:#{args.vmid} #{args.storage}@"\
+            warn "backup list vmid:#{args.vmid} #{args.storage}@"\
                            "#{args.node}:"
             proxmox.list_storage(args.node, args.storage).each do |c|
               # print " content:#{c['content']} volid:#{c['volid']}\n"
